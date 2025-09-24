@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Secure Substation Digital Twin Map</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            color: #333;
+        }
+        h2 {
+            margin-bottom: 30px;
+        }
+        .legend {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+        }
+        .legend-item-box {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+            border: 1px solid #000;
+        }
+        #map-container {
+            width: 800px;
+            height: 500px;
+            border: 2px solid #ccc;
+            background-color: #fff;
+            position: relative;
+        }
+        .asset {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 12px;
+            border: 2px solid;
+            transition: all 0.5s ease-in-out;
+            cursor: pointer;
+        }
+        .digital-twin {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            border: 3px dashed #007BFF;
+            background-color: rgba(0, 123, 255, 0.1);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #007BFF;
+            text-align: center;
+        }
+        .link {
+            position: absolute;
+            border-bottom: 2px dashed;
+            transform-origin: 0 0;
+            transition: border-color 0.5s ease-in-out, transform 0.5s ease-in-out;
+        }
+        .connected-line {
+            border-color: #28a745;
+        }
+        .unauthorized-line {
+            border-color: #dc3545;
+        }
+        .connected {
+            background-color: #d4edda;
+            border-color: #28a745;
+        }
+        .unauthorized {
+            background-color: #f8d7da;
+            border-color: #dc3545;
+        }
+        .unauthenticated {
+            background-color: #ffc107;
+            border-color: #ffc107;
+        }
+        .asset-label {
+            position: absolute;
+            font-size: 10px;
+            font-weight: bold;
+            text-align: center;
+            width: 100px;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Secure Digital Twin for EHV Substation</h2>
+    
+    <div class="legend">
+        <div class="legend-item"><div class="legend-item-box" style="background-color: #d4edda; border-color: #28a745;"></div>Authenticated Asset</div>
+        <div class="legend-item"><div class="legend-item-box" style="background-color: #f8d7da; border-color: #dc3545;"></div>Unauthorized Asset</div>
+    </div>
+
+    <div id="map-container">
+        <div id="asset-1" class="asset unauthenticated" style="top: 10%; left: 15%;">Transformer</div>
+        <div id="asset-2" class="asset unauthenticated" style="top: 30%; left: 70%;">Circuit Breaker</div>
+        <div id="asset-3" class="asset unauthorized" style="top: 80%; left: 30%;">Malicious Device</div>
+        <div class="digital-twin">Digital Twin Core</div>
+    </div>
+
+    <script>
+        const mapContainer = document.getElementById('map-container');
+        const twinCore = { x: 50, y: 50 };
+        const assets = [
+            { id: 'asset-1', status: 'connected', x: 15, y: 10 },
+            { id: 'asset-2', status: 'connected', x: 70, y: 30 },
+            { id: 'asset-3', status: 'unauthorized', x: 30, y: 80 }
+        ];
+
+        function createLink(fromX, fromY, toX, toY, className) {
+            const containerRect = mapContainer.getBoundingClientRect();
+            const fromRect = document.getElementById(assets[0].id).getBoundingClientRect();
+            const toRect = document.querySelector('.digital-twin').getBoundingClientRect();
+            
+            fromX = fromX * containerRect.width / 100;
+            fromY = fromY * containerRect.height / 100;
+            toX = toX * containerRect.width / 100;
+            toY = toY * containerRect.height / 100;
+
+            const dx = toX - fromX;
+            const dy = toY - fromY;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+            const link = document.createElement('div');
+            link.className = `link ${className}`;
+            link.style.width = `${length}px`;
+            link.style.top = `${fromY}px`;
+            link.style.left = `${fromX}px`;
+            link.style.transform = `rotate(${angle}deg)`;
+            mapContainer.appendChild(link);
+        }
+
+        // Simulate a discovery process
+        let currentAssetIndex = 0;
+        const interval = setInterval(() => {
+            if (currentAssetIndex >= assets.length) {
+                clearInterval(interval);
+                return;
+            }
+
+            const asset = assets[currentAssetIndex];
+            const assetElement = document.getElementById(asset.id);
+
+            // Animate asset moving towards the core
+            assetElement.style.top = `${twinCore.y}%`;
+            assetElement.style.left = `${twinCore.x}%`;
+            
+            setTimeout(() => {
+                // Change color to final state and draw line
+                if (asset.status === 'connected') {
+                    assetElement.classList.remove('unauthenticated');
+                    assetElement.classList.add('connected');
+                    createLink(asset.x, asset.y, twinCore.x, twinCore.y, 'connected-line');
+                } else {
+                    assetElement.classList.remove('unauthenticated');
+                    assetElement.classList.add('unauthorized');
+                    createLink(asset.x, asset.y, twinCore.x, twinCore.y, 'unauthorized-line');
+                }
+                
+                // Animate asset back to original position
+                setTimeout(() => {
+                    assetElement.style.top = `${asset.y}%`;
+                    assetElement.style.left = `${asset.x}%`;
+                }, 500);
+
+            }, 1000); // Wait for a moment to show the connection attempt
+
+            currentAssetIndex++;
+        }, 2000); // Run every 2 seconds for a new asset
+
+    </script>
+</body>
+</html>
